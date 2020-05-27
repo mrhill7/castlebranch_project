@@ -11,11 +11,18 @@ class States extends Controller
      * Display the specified resource.
      *
      * @param  string  $state_ref
+     * @param Request $request
      * @return \Illuminate\Http\Response
      */
     public function show($state_ref, Request $request)
     {
-        $state = State_Model::where('abbreviation', (string)$state_ref)->firstOrFail();
+        $state = State_Model::where('abbreviation', (string)$state_ref)->first();
+        // 404s on requests from states not in the database.
+        if(! isset($state))
+        {
+            return response()->json(['message' => 'State not found!'], 404);
+        }
+        // Checking for optional Zip in request
         if(isset($request->zip))
         {
             $counties = $state->counties_cities()->where('zip', '!=', $request->zip)->get();
@@ -24,8 +31,11 @@ class States extends Controller
         {
             $counties = $state->counties_cities;
         }
+    
         $unique_counties = array();
         $final_counties = array();
+
+        // get each unique county name
         foreach($counties as $county)
         {
             if(! in_array($county->county_name, $unique_counties))
@@ -34,6 +44,7 @@ class States extends Controller
                 
             }
         }
+        // create the data structures to encode into json
         foreach($unique_counties as $unique_county)
         {
             $cities = array();
@@ -46,6 +57,7 @@ class States extends Controller
             }
             array_push($final_counties, array('name'=>$unique_county, 'cities'=>$cities));
         }
+        // Final Response and Return
         $finished_response = array('state'=> $state->name, 'counties' => $final_counties);
 
         return response()->json($finished_response);
